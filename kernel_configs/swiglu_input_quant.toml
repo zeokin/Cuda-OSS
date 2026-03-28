@@ -1,0 +1,20 @@
+[meta]
+multi_output = true
+
+test_dtypes = ["bfloat16"]
+
+[[test_sizes]]
+label = "small"
+params = {M = 256, N = 1024}
+
+[[test_sizes]]
+label = "medium"
+params = {M = 1024, N = 3584}
+
+[[test_sizes]]
+label = "large"
+params = {M = 4096, N = 7168}
+
+[tolerances.bfloat16]
+atol = 5e-1
+rtol = 5e-1

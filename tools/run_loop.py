@@ -10,8 +10,7 @@ to provide the hypothesis and code change. This script:
 3. Optionally runs ncu_profile.py
 4. Applies the keep/revert decision automatically
 5. Appends results to results.tsv with full metadata
-6. Runs the supervisor check periodically
-7. Outputs a compact summary for the agent's context
+6. Outputs a compact summary for the agent's context
 
 Usage:
   uv run tools/run_loop.py --hypothesis "increase tile size from 64 to 128"
@@ -24,6 +23,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import subprocess
 import sys
 import time
@@ -33,6 +33,20 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 RESULTS_FILE = ROOT / "workspace" / "results.tsv"
 KERNEL_FILE = ROOT / "kernel.py"
+KERNEL_CU_FILE = ROOT / "kernel.cu"
+
+
+def _get_kernel_type() -> str:
+    """Read KERNEL_TYPE from kernel.py without fully importing it."""
+    if not KERNEL_FILE.exists():
+        return ""
+    try:
+        spec = importlib.util.spec_from_file_location("_kernel_peek", str(KERNEL_FILE))
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return getattr(mod, "KERNEL_TYPE", "")
+    except Exception:
+        return ""
 
 
 def _run(cmd: list[str], capture: bool = True, timeout: int = 300) -> subprocess.CompletedProcess:
@@ -53,6 +67,8 @@ def _git_sha() -> str:
 
 def _git_commit(message: str) -> bool:
     _run(["git", "add", "kernel.py"])
+    if KERNEL_CU_FILE.exists():
+        _run(["git", "add", "kernel.cu"])
     r = _run(["git", "commit", "-m", message])
     return r.returncode == 0
 
@@ -86,6 +102,7 @@ def _parse_bench_output(log: str) -> dict[str, str]:
         "pct_peak_compute", "pct_peak_bandwidth", "bottleneck",
         "peak_vram_mb", "bench_time_seconds", "kernel_type",
         "latency_us", "latency_ms", "bandwidth_gb_s",
+        "gpu_memory_gb",
     ]
     for line in log.split("\n"):
         line = line.strip()
@@ -151,11 +168,14 @@ def run_experiment(
     run_ncu: bool = False,
     parent_id: str = "",
     dry_run: bool = False,
-    supervisor_interval: int = 5,
 ) -> dict:
     """Run one experiment cycle: commit -> bench -> decide -> record."""
     exp_count = _get_experiment_count() + 1
-    exp_id = f"exp_{exp_count:03d}"
+    kernel_type = _get_kernel_type()
+    if kernel_type:
+        exp_id = f"{kernel_type}_exp_{exp_count:03d}"
+    else:
+        exp_id = f"exp_{exp_count:03d}"
 
     if not parent_id:
         parent_id = _get_last_experiment_id()
@@ -225,8 +245,24 @@ def run_experiment(
 
     # --- Step 4: Decide ---
     kept = False
+    vram_exceeded = False
+    try:
+        peak_vram = float(bench_metrics.get("peak_vram_mb", "0"))
+        gpu_mem_gb = float(bench_metrics.get("gpu_memory_gb", "0"))
+        if gpu_mem_gb > 0 and peak_vram > 0:
+            gpu_mem_mb = gpu_mem_gb * 1024
+            vram_pct = peak_vram / gpu_mem_mb * 100
+            if vram_pct > 80:
+                vram_exceeded = True
+                print(f"\nVRAM: {peak_vram:.0f} MB / {gpu_mem_mb:.0f} MB ({vram_pct:.1f}%) — exceeds 80% limit")
+    except ValueError:
+        pass
+
     if correctness == "FAIL":
         print("\nDECISION: REVERT (correctness failed)")
+        _git_revert()
+    elif vram_exceeded:
+        print("DECISION: REVERT (VRAM exceeds 80% of GPU memory)")
         _git_revert()
     elif correctness == "PASS":
         # Compare against parent throughput
@@ -247,7 +283,7 @@ def run_experiment(
                 print(f"DECISION: REVERT ({improvement:.2f}% < 1% threshold)")
                 _git_revert()
         else:
-            print("DECISION: KEEP (no parent baseline to compare)")
+            print("DECISION: KEEP (baseline experiment — no parent to compare against)")
             kept = True
     else:
         print(f"DECISION: REVERT (unknown correctness: {correctness})")
@@ -257,16 +293,7 @@ def run_experiment(
     _append_result(exp_id, hypothesis, bench_metrics, ncu_metrics, kept, git_sha, parent_id)
     print(f"\nresult_recorded: {exp_id} -> results.tsv")
 
-    # --- Step 6: Supervisor check ---
-    if exp_count % supervisor_interval == 0:
-        print("\n--- Supervisor check ---")
-        sup_result = _run(["uv", "run", "tools/supervisor.py"])
-        if sup_result.stdout:
-            for line in sup_result.stdout.strip().split("\n"):
-                if line.startswith("supervisor_"):
-                    print(line)
-
-    # --- Step 7: Compact summary ---
+    # --- Step 6: Compact summary ---
     print("\n=== EXPERIMENT SUMMARY ===")
     print(f"experiment_id: {exp_id}")
     print(f"hypothesis: {hypothesis}")
@@ -347,12 +374,6 @@ def main():
         action="store_true",
         help="Show what would happen without executing",
     )
-    parser.add_argument(
-        "--supervisor-interval",
-        type=int,
-        default=5,
-        help="Run supervisor every N experiments (default: 5)",
-    )
     args = parser.parse_args()
 
     result = run_experiment(
@@ -361,7 +382,6 @@ def main():
         run_ncu=args.ncu,
         parent_id=args.parent_id,
         dry_run=args.dry_run,
-        supervisor_interval=args.supervisor_interval,
     )
 
     if result.get("correctness") == "FAIL":

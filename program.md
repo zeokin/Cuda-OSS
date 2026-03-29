@@ -435,12 +435,11 @@ uv run tools/run_loop.py --hypothesis "test change" --dry-run
 ```
 
 The runner automatically:
-- Commits `kernel.py` before benchmarking
+- Commits `kernel.py` (and `kernel.cu` if present) before benchmarking
 - Runs `tools/bench.py` and parses metrics
 - Optionally runs `tools/ncu_profile.py`
 - Applies keep/revert decision (>1% improvement threshold)
 - Appends full metadata to `workspace/results.tsv` (including git_sha, NCU metrics)
-- Runs supervisor check every 5 experiments
 - Outputs a compact summary
 
 This reduces token usage and eliminates the risk of forgetting to commit or revert.
@@ -450,7 +449,7 @@ This reduces token usage and eliminates the risk of forgetting to commit or reve
 1. **Never break correctness.** Every change must pass all 5 correctness stages.
 2. **Never modify files in `tools/` (harness scripts), `references/`, or `kernels/`.** These are fixed baselines and evaluation harnesses. Save optimized kernels to `kernels_optimized/`.
 3. **One change at a time.** Isolate variables to understand causality.
-4. **Always commit before benchmarking.** This enables clean reverts.
+4. **Always commit before benchmarking.** Commit both `kernel.py` and `kernel.cu` (if present). This enables clean reverts.
 5. **Read per-kernel log before each experiment.** Check `memory/<kernel_type>.md` to learn from past attempts on this kernel.
 6. **Always run NCU analysis.** Every experiment should include both macro (`tools/bench.py`) and micro (ncu-cli) analysis. Don't hypothesize without evidence.
 7. **Use roofline data and NCU findings together.** Macro tells you the direction, NCU tells you the specific cause.

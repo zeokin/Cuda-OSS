@@ -32,7 +32,6 @@ import torch
 
 from kernel_configs import KERNEL_CONFIGS
 
-
 # ---------------------------------------------------------------------------
 # Timeout helper
 # ---------------------------------------------------------------------------
@@ -301,7 +300,7 @@ def run_correctness(kernel_fn: Callable, config: dict, quick: bool = False) -> d
     if results["smoke_test"] == "FAIL":
         results["correctness"] = "FAIL"
         results["details"] = details
-        print(f"\ncorrectness: FAIL (smoke test failed, aborting remaining stages)")
+        print("\ncorrectness: FAIL (smoke test failed, aborting remaining stages)")
         return results
 
     # ------------------------------------------------------------------
@@ -346,7 +345,11 @@ def run_correctness(kernel_fn: Callable, config: dict, quick: bool = False) -> d
                     details.append(f"  sweep {label}/{dtype}: {cmp['reason']}")
                     print(f"  FAIL: {label} {dtype} -> {cmp['reason']}")
                 else:
-                    print(f"  PASS: {label} {dtype} (max_err={cmp['max_abs_error']:.2e}, within_tol={cmp['pct_within_tol']:.1f}%)")
+                    print(
+                        f"  PASS: {label} {dtype} "
+                        f"(max_err={cmp['max_abs_error']:.2e}, "
+                        f"within_tol={cmp['pct_within_tol']:.1f}%)"
+                    )
 
             except torch.cuda.OutOfMemoryError:
                 print(f"  SKIP: {label} {dtype} -> OOM")
@@ -370,7 +373,10 @@ def run_correctness(kernel_fn: Callable, config: dict, quick: bool = False) -> d
         all_pass = False
         print(f"  shape_sweep: FAIL (0/{sweep_count} configs ran — all skipped due to OOM)")
     elif sweep_pass:
-        results["shape_sweep"] = f"PASS ({sweep_run_count}/{sweep_count} configs, worst_err={worst_error:.2e} at {worst_case})"
+        results["shape_sweep"] = (
+            f"PASS ({sweep_run_count}/{sweep_count} configs, "
+            f"worst_err={worst_error:.2e} at {worst_case})"
+        )
         print(f"  shape_sweep: PASS ({sweep_run_count}/{sweep_count} configs, worst_err={worst_error:.2e})")
     else:
         results["shape_sweep"] = f"FAIL ({sweep_fail_count}/{sweep_count} failed)"
@@ -672,12 +678,20 @@ def run_performance(kernel_fn: Callable, config: dict, gpu: GPUSpec,
 
             if arithmetic_intensity < ridge_point:
                 bottleneck = "memory_bound"
-                pct_peak_bandwidth = (bandwidth_gb_s / gpu.peak_bandwidth_gb_s * 100.0) if gpu.peak_bandwidth_gb_s > 0 else 0.0
+                pct_peak_bandwidth = (
+                    (bandwidth_gb_s / gpu.peak_bandwidth_gb_s * 100.0)
+                    if gpu.peak_bandwidth_gb_s > 0
+                    else 0.0
+                )
                 pct_peak_compute = (throughput_tflops / peak_tflops * 100.0) if peak_tflops > 0 else 0.0
             else:
                 bottleneck = "compute_bound"
                 pct_peak_compute = (throughput_tflops / peak_tflops * 100.0) if peak_tflops > 0 else 0.0
-                pct_peak_bandwidth = (bandwidth_gb_s / gpu.peak_bandwidth_gb_s * 100.0) if gpu.peak_bandwidth_gb_s > 0 else 0.0
+                pct_peak_bandwidth = (
+                    (bandwidth_gb_s / gpu.peak_bandwidth_gb_s * 100.0)
+                    if gpu.peak_bandwidth_gb_s > 0
+                    else 0.0
+                )
 
             speedup = ref_ms / kernel_ms if kernel_ms > 0 else 0.0
 
@@ -825,28 +839,28 @@ def main():
                 sys.exit(1)
 
         print(f"kernel_type: {kernel_type}")
-        print(f"kernel_module: kernel.py loaded successfully")
+        print("kernel_module: kernel.py loaded successfully")
 
     except SyntaxError as e:
-        print(f"\nERROR: kernel.py has a syntax error:")
+        print("\nERROR: kernel.py has a syntax error:")
         print(f"  {e}")
         traceback.print_exc()
-        print(f"\ncorrectness: FAIL")
-        print(f"throughput_tflops: 0.000")
+        print("\ncorrectness: FAIL")
+        print("throughput_tflops: 0.000")
         sys.exit(1)
     except Exception as e:
-        print(f"\nERROR: Failed to import kernel.py:")
+        print("\nERROR: Failed to import kernel.py:")
         print(f"  {type(e).__name__}: {e}")
         traceback.print_exc()
-        print(f"\ncorrectness: FAIL")
-        print(f"throughput_tflops: 0.000")
+        print("\ncorrectness: FAIL")
+        print("throughput_tflops: 0.000")
         sys.exit(1)
 
     if kernel_type not in KERNEL_CONFIGS:
         print(f"\nERROR: Unknown kernel type '{kernel_type}'")
         print(f"  Available: {', '.join(KERNEL_CONFIGS.keys())}")
-        print(f"\ncorrectness: FAIL")
-        print(f"throughput_tflops: 0.000")
+        print("\ncorrectness: FAIL")
+        print("throughput_tflops: 0.000")
         sys.exit(1)
 
     config = KERNEL_CONFIGS[kernel_type]
@@ -856,7 +870,7 @@ def main():
     # ------------------------------------------------------------------
     gpu = detect_gpu()
 
-    print(f"\n=== GPU INFO ===")
+    print("\n=== GPU INFO ===")
     print(f"gpu_name: {gpu.name}")
     print(f"gpu_sm_count: {gpu.sm_count}")
     print(f"gpu_memory_gb: {gpu.memory_gb}")
@@ -870,7 +884,7 @@ def main():
     # ------------------------------------------------------------------
     # Correctness
     # ------------------------------------------------------------------
-    print(f"\n=== CORRECTNESS ===")
+    print("\n=== CORRECTNESS ===")
     try:
         correctness_results = run_correctness(kernel_fn, config, quick=args.quick)
     except Exception as e:
@@ -879,7 +893,7 @@ def main():
         correctness_results = {"correctness": "FAIL", "smoke_test": "CRASH", "shape_sweep": "CRASH",
                                "numerical_stability": "CRASH", "determinism": "CRASH", "edge_cases": "CRASH"}
 
-    print(f"\n--- Correctness Summary ---")
+    print("\n--- Correctness Summary ---")
     print(f"smoke_test: {correctness_results.get('smoke_test', 'N/A')}")
     print(f"shape_sweep: {correctness_results.get('shape_sweep', 'N/A')}")
     print(f"numerical_stability: {correctness_results.get('numerical_stability', 'N/A')}")
@@ -933,7 +947,7 @@ def main():
         print(f"bytes: {primary['bytes']}")
         print(f"peak_vram_mb: {peak_vram_mb:.1f}")
 
-        print(f"\n=== COMPARISON VS PYTORCH ===")
+        print("\n=== COMPARISON VS PYTORCH ===")
         print(f"pytorch_latency_us: {primary['pytorch_latency_us']:.2f}")
         print(f"pytorch_latency_ms: {primary['pytorch_latency_us'] / 1000.0:.4f}")
         print(f"kernel_latency_us: {primary['kernel_latency_us']:.2f}")
@@ -942,27 +956,27 @@ def main():
         print(f"pytorch_tflops: {primary['ref_throughput_tflops']:.3f}")
         print(f"kernel_tflops: {primary['throughput_tflops']:.3f}")
     else:
-        print(f"\nlatency_us: 0.00")
-        print(f"latency_ms: 0.0000")
-        print(f"throughput_tflops: 0.000")
-        print(f"bandwidth_gb_s: 0.0")
-        print(f"pct_peak_compute: 0.0%")
-        print(f"pct_peak_bandwidth: 0.0%")
+        print("\nlatency_us: 0.00")
+        print("latency_ms: 0.0000")
+        print("throughput_tflops: 0.000")
+        print("bandwidth_gb_s: 0.0")
+        print("pct_peak_compute: 0.0%")
+        print("pct_peak_bandwidth: 0.0%")
         print(f"peak_vram_mb: {peak_vram_mb:.1f}")
 
-        print(f"\n=== COMPARISON VS PYTORCH ===")
-        print(f"pytorch_latency_us: 0.00")
-        print(f"pytorch_latency_ms: 0.0000")
-        print(f"kernel_latency_us: 0.00")
-        print(f"kernel_latency_ms: 0.0000")
-        print(f"speedup_vs_pytorch: 0.000x")
+        print("\n=== COMPARISON VS PYTORCH ===")
+        print("pytorch_latency_us: 0.00")
+        print("pytorch_latency_ms: 0.0000")
+        print("kernel_latency_us: 0.00")
+        print("kernel_latency_ms: 0.0000")
+        print("speedup_vs_pytorch: 0.000x")
 
     # ------------------------------------------------------------------
     # Size sweep table
     # ------------------------------------------------------------------
     all_perf = perf_results.get("all", [])
     if len(all_perf) > 1:
-        print(f"\n=== SIZE SWEEP ===")
+        print("\n=== SIZE SWEEP ===")
         print(f"{'size':<12} {'kernel_us':>12} {'pytorch_us':>12} {'speedup':>10} {'tflops':>10} {'%peak':>8}")
         print("-" * 66)
         for entry in all_perf:
@@ -985,7 +999,7 @@ def main():
     t_elapsed = time.time() - t_start
     throughput = primary["throughput_tflops"] if primary else 0.0
 
-    print(f"\n=== FINAL ===")
+    print("\n=== FINAL ===")
     print(f"kernel_type: {kernel_type}")
     print(f"correctness: {correctness_results['correctness']}")
     print(f"throughput_tflops: {throughput:.3f}")
@@ -995,9 +1009,9 @@ def main():
         print(f"pct_peak_bandwidth: {primary['pct_peak_bandwidth']:.1f}%")
         print(f"bottleneck: {primary['bottleneck']}")
     else:
-        print(f"speedup_vs_pytorch: 0.000x")
-        print(f"pct_peak_compute: 0.0%")
-        print(f"pct_peak_bandwidth: 0.0%")
+        print("speedup_vs_pytorch: 0.000x")
+        print("pct_peak_compute: 0.0%")
+        print("pct_peak_bandwidth: 0.0%")
     print(f"bench_time_seconds: {t_elapsed:.1f}")
 
     if t_elapsed > 90:

@@ -93,7 +93,10 @@ def init_results():
                 cols.extend([""] * (new_col_count - len(cols)))
                 migrated.append("\t".join(cols[:new_col_count]))
             RESULTS_FILE.write_text("\n".join(migrated) + "\n")
-            print(f"[✓] Migrated {RESULTS_FILE.name} ({len(old_rows)} rows, {old_col_count} -> {new_col_count} columns)")
+            print(
+                f"[✓] Migrated {RESULTS_FILE.name} "
+                f"({len(old_rows)} rows, {old_col_count} -> {new_col_count} columns)"
+            )
         else:
             print(f"[✓] {RESULTS_FILE.name} exists ({len(lines) - 1} experiments recorded)")
 
@@ -121,9 +124,9 @@ def check_kernel_files():
         print(f"[!] {kernel_py.name} not found — create it or copy a kernel from kernels/")
 
     if references_dir.exists() and (references_dir / "__init__.py").exists():
-        print(f"[✓] references/ package exists")
+        print("[✓] references/ package exists")
     else:
-        print(f"[!] references/ package not found — create it before running experiments")
+        print("[!] references/ package not found — create it before running experiments")
 
 
 def main():

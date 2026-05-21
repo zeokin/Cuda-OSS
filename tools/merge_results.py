@@ -11,7 +11,6 @@ working directory.
 import sys
 from pathlib import Path
 
-
 HEADER = (
     "experiment_id\thypothesis\tcorrectness\ttime_ms\tthroughput\tpeak_vram_mb\tkept"
     "\tpct_peak_compute\tpct_peak_bandwidth\tbottleneck\tgit_sha\tparent_experiment_id"

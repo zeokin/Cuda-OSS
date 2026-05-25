@@ -98,6 +98,9 @@ uv run tools/bench.py
 #   "Read program.md and start optimizing kernel.py."
 # or run the automated loop:
 uv run tools/run_loop.py --hypothesis "increase tile size from 64 to 128" --ncu
+
+# Visualize the run history (timeline + lineage)
+uv run tools/visualize.py
 ```
 
 Until baselines land, you can still use the framework with your own kernel: write a `kernel.py` that exports the [contract](#kernel-contract), make sure the matching `kernel_configs/<name>.toml` + `<name>.py` and `references/<name>.py` exist, and run `tools/bench.py` against it.
@@ -153,7 +156,8 @@ Cuda-OSS/
 │   ├── ncu_profile.py      # Nsight Compute wrapper with greppable output
 │   ├── run_loop.py         # Automated experiment driver
 │   ├── prepare.py          # Environment validation
-│   └── merge_results.py    # Merge results.tsv from multiple agent worktrees
+│   ├── merge_results.py    # Merge results.tsv from multiple agent worktrees
+│   └── visualize.py        # Render progress.png and lineage.txt from results.tsv
 └── pyproject.toml
 ```
 

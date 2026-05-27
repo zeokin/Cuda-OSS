@@ -45,12 +45,18 @@ def check_triton():
 
 
 def check_tools():
-    for tool, desc in [("nvcc", "CUDA Compiler"), ("ncu", "Nsight Compute"), ("nsys", "Nsight Systems")]:
+    for tool, desc in [("nvcc", "CUDA Compiler"), ("ncu", "Nsight Compute"), ("nsys", "Nsight Systems"), ("nvidia-smi", "NVIDIA driver")]:
         path = shutil.which(tool)
         if path:
             print(f"[✓] {desc}: {path}")
         else:
             print(f"[!] {desc} ({tool}) not found in PATH — profiling features may be limited")
+    # emit greppable status for nvidia-smi (per issue acceptance criteria)
+    smi_path = shutil.which("nvidia-smi")
+    if smi_path:
+        print("nvidia_smi=ok")
+    else:
+        print("nvidia_smi=missing")
 
 
 def check_git():
